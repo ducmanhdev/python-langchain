@@ -1,0 +1,44 @@
+# Ignore compiled Python files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore virtual environment folders
+venv/
+env/
+*.env
+
+# Ignore IDE-specific files
+.vscode/
+.idea/
+
+# Ignore system-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore log files
+*.log
+
+# Ignore compiled executables
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Ignore package manager directories
+node_modules/
+bower_components/
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore user-specific configuration files
+*.bak
+*.swp
+*.swo
+*.DS_Store
+*.sublime-workspace
+*.sublime-project
+*.vscode-workspace
+*.vscode-settings.json
+*.idea/
