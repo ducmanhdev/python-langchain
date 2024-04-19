@@ -62,6 +62,7 @@ few_shot_prompt = FewShotPromptTemplate(
     prefix=system_prefix,
     suffix="",
 )
+
 full_prompt = ChatPromptTemplate.from_messages(
     [
         SystemMessagePromptTemplate(prompt=few_shot_prompt),
@@ -69,15 +70,6 @@ full_prompt = ChatPromptTemplate.from_messages(
         MessagesPlaceholder("agent_scratchpad"),
     ]
 )
-
-# prompt_val = full_prompt.invoke(
-#     {
-#         "input": "what is the sales of hcp Chi Ming looking like?",
-#         "dialect": "SQLite",
-#         "top_k": 5,
-#         "agent_scratchpad": [],
-#     }
-# )
 
 agent_executor = create_sql_agent(
     llm=llm,
