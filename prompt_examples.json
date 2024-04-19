@@ -1,0 +1,38 @@
+[
+    {
+        "input": "what is the sales of hcp Chi Ming looking like?",
+        "query": "SELECT hcp_sales.product,sum(hcp_sales.trx), sum(hcp_sales.nrx) FROM hcp_sales JOIN hcp ON hcp_sales.hcp_id = hcp.id WHERE hcp.name = 'Chi Ming' GROUP BY hcp_sales.product_name;"
+    },
+    {
+        "input": "How many total prescriptions under G2M10000 since 2024?",
+        "query": "SELECT product_name, SUM(trx) AS total_prescriptions FROM hcp_sales WHERE hcp_id IN (SELECT hcp_id FROM geo_hcp_hierarchy WHERE district_code = 'G2M10000') GROUP BY product_name AND week_date >= '2024-01-01'"
+    },
+    {
+        "input": "what is the sales of account 1234567?",
+        "query": "SELECT hcp_sales.product_name, sum(hcp_sales.trx), sum(hcp_sales.nrx) FROM hcp_sales JOIN affiliation ON hcp_sales.hcp_id = affiliation.hcp_id WHERE affiliation.account_id = 1234567 group by hcp_sales.product_name"
+    },
+    {
+        "input": "show me the total sales by market",
+        "query": "select product.market, sum(hcp_sales.trx) from hcp_sales inner join product on product.product_name = hcp_sales.product_name group by product.market;"
+    },
+    {
+        "input": "How many territory under G1000000?",
+        "query": "select count(b.geo_code) as number_of_territory from geo a left join geo b on a.geo_code = b.parent_geo_code where a.parent_geo_code = 'G1000000' group by a.parent_geo_code"
+    },
+    {
+        "input": "show me the top 10 accounts by sales under the territory G5M61006 by Pomalyst sales?",
+        "query": "SELECT a.name, SUM(b.trx) AS total_sales FROM account AS a JOIN account_sales AS b ON a.id = b.account_id WHERE b.product_name = 'POMALYST' AND b.geo = 'G5M61006' GROUP BY a.name ORDER BY total_sales DESC LIMIT 10"
+    },
+    {
+        "input": "show me top 10 team 1 territories by pomalyst trx volume growth",
+        "query": "SELECT rank.geo, rank.growth_volume FROM rank WHERE rank.product_name = 'POMALYST' AND rank.team = 'TEAM 1'  AND rank.data_type = 'TRx' AND rank.level = 'Territory' ORDER BY rank.growth_volume DESC LIMIT 10"
+    },
+    {
+        "input": "show top 10 hcps under geo G1M13002 by pomalyst sales",
+        "query": "SELECT hcp_sales.hcp_id, SUM(hcp_sales.trx) AS total_sales FROM hcp_sales JOIN alignment ON hcp_sales.hcp_id = alignment.hcp_id WHERE alignment.territory_code = 'G1M13002' and hcp_sales.product_name = 'POMALYST' GROUP BY hcp_sales.hcp_id ORDER BY total_sales DESC LIMIT 10"
+    },
+    {
+        "input": "what is the sales of account IRONWOOD CANCER & RESEARCH CENTERS?",
+        "query": "SELECT product_name, SUM(trx) AS total_sales FROM account_sales JOIN account ON account_sales.account_id = account.id WHERE account.name = 'IRONWOOD CANCER & RESEARCH CENTERS' GROUP BY product_name"
+    }
+]
