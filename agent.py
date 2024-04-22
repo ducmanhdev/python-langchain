@@ -5,7 +5,7 @@ from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables import ConfigurableFieldSpec
 from langchain_core.runnables.history import RunnableWithMessageHistory
-# from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain_community.utilities import SQLDatabase
 from dotenv import load_dotenv
 from langchain_community.agent_toolkits import create_sql_agent
@@ -29,16 +29,16 @@ with open('examples.json', 'r') as file:
 db_uri = "sqlite:///./mydb.db"
 db = SQLDatabase.from_uri(db_uri)
 
-# llm = ChatOpenAI(
-#     model="gpt-3.5-turbo",
-#     temperature=0
-# )
-
-llm = AzureChatOpenAI(
-    openai_api_version="2024-02-01",
-    azure_deployment="xsunt-ai",
-    temperature=0.7,
+llm = ChatOpenAI(
+    model="gpt-3.5-turbo",
+    temperature=0
 )
+
+# llm = AzureChatOpenAI(
+#     openai_api_version="2024-02-01",
+#     azure_deployment="xsunt-ai",
+#     temperature=0.7,
+# )
 
 example_selector = SemanticSimilarityExampleSelector.from_examples(
     examples,
@@ -49,10 +49,10 @@ example_selector = SemanticSimilarityExampleSelector.from_examples(
 )
 
 prefix = f"""
-You are an agent designed to interact with an SQL database.
+You are an agent designed to interact with an SQL database and visualize data.
 You will receive questions about pharmaceutical prescription data. 
 Create a syntactically correct {{dialect}} query to run, then look at the results of the query and return the answer.
-If the user requests a chart or a table, you will return a JSON of Plotly in the answer, wrap it between {PLOTLY_START_FLAG} and {PLOTLY_END_FLAG}.
+If the user requests a chart or a table, you have to generate it using library Plotly and return a JSON in the answer, wrap it between {PLOTLY_START_FLAG} and {PLOTLY_END_FLAG}.
 Unless the user specifies a specific number of examples they wish to obtain, always limit your query to at most {{top_k}} results.
 You can order the results by a relevant column to return the most interesting examples in the database.
 Never query for all the columns from a specific table. Only ask for the relevant columns given the question.
