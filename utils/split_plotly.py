@@ -8,16 +8,15 @@ def split_plotly(
         end_flag=PLOTLY_END_FLAG
 ):
     try:
-        start = output.find(start_flag) + len(start_flag)
-        end = output.find(end_flag)
-        region = output[start:end].strip()
+        if PLOTLY_START_FLAG in output and PLOTLY_END_FLAG in output:
+            start = output.find(start_flag) + len(start_flag)
+            end = output.find(end_flag)
+            region = output[start:end].strip()
+            content = region[:output.find(start_flag)].strip()
+            plotly_json = json.loads(region)
+            return content, plotly_json
+        else:
+            return output, None
 
-        content = region[:output.find(start_flag)].strip()
-        # st.markdown(content)
-
-        plotly_json = json.loads(region)
-        # st.plotly_chart(plotly_json, use_container_width=True)
-
-        return content, plotly_json
     except Exception as e:
-        return "", ""
+        return output, None

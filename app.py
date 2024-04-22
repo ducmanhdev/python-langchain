@@ -31,13 +31,16 @@ if "messages" not in st.session_state:
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
-        if "plotly_json" in message:
+        if ("plotly_json" in message) and (message["plotly_json"] is not None):
             st.plotly_chart(message["plotly_json"], use_container_width=True)
 
 # Accept user input
 if prompt := st.chat_input("What is up?"):
     # Add user message to chat history
-    st.session_state.messages.append({"role": "user", "content": prompt})
+    st.session_state.messages.append({
+        "role": "user",
+        "content": prompt
+    })
     # Display user message in chat message container
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -58,28 +61,13 @@ if prompt := st.chat_input("What is up?"):
     output: str = response["output"]
     # Display assistant response in chat message container
     with st.chat_message("ai"):
-        START_FLAG = "===Plotly==="
-        ENG_FLAG = "===EndPlotly==="
-        if START_FLAG in output and ENG_FLAG in output:
-            try:
-                content, plotly_json = split_plotly(output)
-                st.markdown(content)
-                st.plotly_chart(plotly_json, use_container_width=True)
+        content, plotly_json = split_plotly(output)
+        st.markdown(content)
+        if plotly_json and plotly_json is not None:
+            st.plotly_chart(plotly_json, use_container_width=True)
 
-                # Add assistant response to chat history
-                st.session_state.messages.append({
-                    "role": "ai",
-                    "content": content,
-                    "plotly_json": plotly_json
-                })
-            except Exception as e:
-                print(e)
-                st.write("Sorry, I couldn't find the plot!")
-
-        else:
-            st.markdown(output)
-            # Add assistant response to chat history
-            st.session_state.messages.append({
-                "role": "ai",
-                "content": output,
-            })
+        st.session_state.messages.append({
+            "role": "ai",
+            "content": content,
+            "plotly_json": plotly_json
+        })
