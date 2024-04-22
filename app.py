@@ -1,15 +1,22 @@
 import streamlit as st
 import json
 
-from agent import agent_executor
+from agent import agent_executor_with_message_history
+
+TEMP_USER_ID = 1
+TEMP_CONSERVATION_ID = 1
 
 st.title("Demo")
+
+# if "history" in agent_executor_with_message_history:
+#     st.session_state.messages = agent_executor_with_message_history.history
+# TODO: Transform history to session_state.messages
 
 # Initialize chat history
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {
-            "role": "assistant",
+            "role": "ai",
             "content": "Can I help you you?"
         },
     ]
@@ -32,11 +39,19 @@ if prompt := st.chat_input("What is up?"):
     # Display spinner while waiting for response
     with st.spinner(text="Waiting for response..."):
         # Invoke agent_executor to get response
-        response = agent_executor.invoke({"input": prompt})
+        response = agent_executor_with_message_history.invoke(
+            {"input": prompt},
+            {
+                "configurable": {
+                    "user_id": TEMP_USER_ID,
+                    "conversation_id": TEMP_CONSERVATION_ID
+                }
+            }
+        )
 
     output: str = response["output"]
     # Display assistant response in chat message container
-    with st.chat_message("assistant"):
+    with st.chat_message("ai"):
         START_FLAG = "===Plotly==="
         ENG_FLAG = "===EndPlotly==="
         if START_FLAG in output and ENG_FLAG in output:
@@ -53,16 +68,18 @@ if prompt := st.chat_input("What is up?"):
 
                 # Add assistant response to chat history
                 st.session_state.messages.append({
-                    "role": "assistant",
+                    "role": "ai",
                     "content": content,
                     "plotly_json": plotly_json
                 })
-            except Exception:
+            except Exception as e:
+                print(e)
                 st.write("Sorry, I couldn't find the plot!")
+
         else:
             st.markdown(output)
             # Add assistant response to chat history
             st.session_state.messages.append({
-                "role": "assistant",
+                "role": "ai",
                 "content": output,
             })

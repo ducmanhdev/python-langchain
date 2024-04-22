@@ -1,6 +1,10 @@
 import json
 
-from langchain_openai import ChatOpenAI
+from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.runnables import ConfigurableFieldSpec
+from langchain_core.runnables.history import RunnableWithMessageHistory
+# from langchain_openai import ChatOpenAI
 from langchain_community.utilities import SQLDatabase
 from dotenv import load_dotenv
 from langchain_community.agent_toolkits import create_sql_agent
@@ -14,6 +18,7 @@ from langchain_core.prompts import (
     PromptTemplate,
     SystemMessagePromptTemplate,
 )
+from langchain_openai import AzureChatOpenAI
 
 load_dotenv()
 
@@ -23,9 +28,15 @@ with open('examples.json', 'r') as file:
 db_uri = "sqlite:///./mydb.db"
 db = SQLDatabase.from_uri(db_uri)
 
-llm = ChatOpenAI(
-    model="gpt-3.5-turbo",
-    temperature=0
+# llm = ChatOpenAI(
+#     model="gpt-3.5-turbo",
+#     temperature=0
+# )
+
+llm = AzureChatOpenAI(
+    openai_api_version="2024-02-01",
+    azure_deployment="xsunt-ai",
+    temperature=0.7,
 )
 
 example_selector = SemanticSimilarityExampleSelector.from_examples(
@@ -49,8 +60,6 @@ Only use the given tools. Only use the information returned by the tools to cons
 You MUST double-check your query before executing it. If you get an error while executing a query, rewrite the query and try again.
 
 DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP, etc.) to the database.
-
-If the question does not seem related to the database (except require plot a chart, a table ...), just return "I don't know" as the answer.
 
 If the query returns nothing or gives an error, simply say, "Sorry, no data available."
 
@@ -89,6 +98,7 @@ few_shot_prompt = FewShotPromptTemplate(
 full_prompt = ChatPromptTemplate.from_messages(
     [
         SystemMessagePromptTemplate(prompt=few_shot_prompt),
+        MessagesPlaceholder("history"),
         ("human", "{input}"),
         MessagesPlaceholder("agent_scratchpad"),
     ]
@@ -102,4 +112,44 @@ agent_executor = create_sql_agent(
     agent_type="openai-tools",
     handle_parsing_errors=True,
     handle_sql_errors=True,
+)
+
+store = {}
+
+
+def get_session_history(user_id: str, conversation_id: str) -> BaseChatMessageHistory:
+    if (user_id, conversation_id) not in store:
+        store[(user_id, conversation_id)] = ChatMessageHistory()
+    return store[(user_id, conversation_id)]
+
+
+# def get_session_history(session_id: str) -> BaseChatMessageHistory:
+#     if session_id not in store:
+#         store[session_id] = ChatMessageHistory()
+#     return store[session_id]
+
+
+agent_executor_with_message_history = RunnableWithMessageHistory(
+    agent_executor,
+    get_session_history,
+    input_messages_key="input",
+    history_messages_key="history",
+    history_factory_config=[
+        ConfigurableFieldSpec(
+            id="user_id",
+            annotation=str,
+            name="User ID",
+            description="Unique identifier for the user.",
+            default="",
+            is_shared=True,
+        ),
+        ConfigurableFieldSpec(
+            id="conversation_id",
+            annotation=str,
+            name="Conversation ID",
+            description="Unique identifier for the conversation.",
+            default="",
+            is_shared=True,
+        ),
+    ],
 )
