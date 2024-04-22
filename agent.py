@@ -20,6 +20,9 @@ from langchain_core.prompts import (
     SystemMessagePromptTemplate,
 )
 from langchain_openai import AzureChatOpenAI
+from langchain_community.chat_message_histories import (
+    StreamlitChatMessageHistory,
+)
 
 load_dotenv()
 
@@ -115,42 +118,44 @@ agent_executor = create_sql_agent(
     handle_sql_errors=True,
 )
 
-store = {}
+# store = {}
 
 
-def get_session_history(user_id: str, conversation_id: str) -> BaseChatMessageHistory:
-    if (user_id, conversation_id) not in store:
-        store[(user_id, conversation_id)] = ChatMessageHistory()
-    return store[(user_id, conversation_id)]
-
+# def get_session_history(user_id: str, conversation_id: str) -> BaseChatMessageHistory:
+#     if (user_id, conversation_id) not in store:
+#         store[(user_id, conversation_id)] = ChatMessageHistory()
+#     return store[(user_id, conversation_id)]
 
 # def get_session_history(session_id: str) -> BaseChatMessageHistory:
 #     if session_id not in store:
 #         store[session_id] = ChatMessageHistory()
 #     return store[session_id]
 
+msgs = StreamlitChatMessageHistory(key="langchain_messages")
+if len(msgs.messages) == 0:
+    msgs.add_ai_message("How can I help you?")
 
 agent_executor_with_message_history = RunnableWithMessageHistory(
     agent_executor,
-    get_session_history,
+    lambda session_id: msgs,
     input_messages_key="input",
     history_messages_key="history",
-    history_factory_config=[
-        ConfigurableFieldSpec(
-            id="user_id",
-            annotation=str,
-            name="User ID",
-            description="Unique identifier for the user.",
-            default="",
-            is_shared=True,
-        ),
-        ConfigurableFieldSpec(
-            id="conversation_id",
-            annotation=str,
-            name="Conversation ID",
-            description="Unique identifier for the conversation.",
-            default="",
-            is_shared=True,
-        ),
-    ],
+    # history_factory_config=[
+    #     ConfigurableFieldSpec(
+    #         id="user_id",
+    #         annotation=str,
+    #         name="User ID",
+    #         description="Unique identifier for the user.",
+    #         default="",
+    #         is_shared=True,
+    #     ),
+    #     ConfigurableFieldSpec(
+    #         id="conversation_id",
+    #         annotation=str,
+    #         name="Conversation ID",
+    #         description="Unique identifier for the conversation.",
+    #         default="",
+    #         is_shared=True,
+    #     ),
+    # ],
 )

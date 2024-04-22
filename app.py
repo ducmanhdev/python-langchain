@@ -1,6 +1,6 @@
 import streamlit as st
 
-from agent import agent_executor_with_message_history
+from agent import agent_executor_with_message_history, msgs
 from utils.split_plotly import split_plotly
 
 TEMP_USER_ID = 1
@@ -8,39 +8,43 @@ TEMP_CONSERVATION_ID = 1
 
 st.title("Demo")
 
-if "history" in agent_executor_with_message_history:
-    st.session_state.messages = []
-    for message in agent_executor_with_message_history.history:
-        content, plotly_json = split_plotly(message.content)
-        st.session_state.messages.append({
-            "role": message.type,
-            "content": content,
-            "plotly_json": plotly_json
-        })
+# if "history" in agent_executor_with_message_history:
+#     st.session_state.messages = []
+#     for message in agent_executor_with_message_history.history:
+#         content, plotly_json = split_plotly(message.content)
+#         st.session_state.messages.append({
+#             "role": message.type,
+#             "content": content,
+#             "plotly_json": plotly_json
+#         })
+#
+# # Initialize chat history
+# if "messages" not in st.session_state:
+#     st.session_state.messages = [
+#         {
+#             "role": "ai",
+#             "content": "Can I help you you?"
+#         },
+#     ]
+#
+# # Display chat messages from history on app rerun
+# for message in st.session_state.messages:
+#     with st.chat_message(message["role"]):
+#         st.markdown(message["content"])
+#         if ("plotly_json" in message) and (message["plotly_json"] is not None):
+#             st.plotly_chart(message["plotly_json"], use_container_width=True)
 
-# Initialize chat history
-if "messages" not in st.session_state:
-    st.session_state.messages = [
-        {
-            "role": "ai",
-            "content": "Can I help you you?"
-        },
-    ]
-
-# Display chat messages from history on app rerun
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-        if ("plotly_json" in message) and (message["plotly_json"] is not None):
-            st.plotly_chart(message["plotly_json"], use_container_width=True)
+print("msgs.messages", msgs.messages)
+for msg in msgs.messages:
+    st.chat_message(msg.type).write(msg.content)
 
 # Accept user input
 if prompt := st.chat_input("What is up?"):
     # Add user message to chat history
-    st.session_state.messages.append({
-        "role": "user",
-        "content": prompt
-    })
+    # st.session_state.messages.append({
+    #     "role": "user",
+    #     "content": prompt
+    # })
     # Display user message in chat message container
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -51,9 +55,12 @@ if prompt := st.chat_input("What is up?"):
         response = agent_executor_with_message_history.invoke(
             {"input": prompt},
             {
+                # "configurable": {
+                #     "user_id": TEMP_USER_ID,
+                #     "conversation_id": TEMP_CONSERVATION_ID
+                # }
                 "configurable": {
-                    "user_id": TEMP_USER_ID,
-                    "conversation_id": TEMP_CONSERVATION_ID
+                    "session_id": "any"
                 }
             }
         )
@@ -66,8 +73,8 @@ if prompt := st.chat_input("What is up?"):
         if plotly_json and plotly_json is not None:
             st.plotly_chart(plotly_json, use_container_width=True)
 
-        st.session_state.messages.append({
-            "role": "ai",
-            "content": content,
-            "plotly_json": plotly_json
-        })
+        # st.session_state.messages.append({
+        #     "role": "ai",
+        #     "content": content,
+        #     "plotly_json": plotly_json
+        # })
