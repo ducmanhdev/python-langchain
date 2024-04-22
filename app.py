@@ -17,7 +17,6 @@ if "history" in agent_executor_with_message_history:
             "content": content,
             "plotly_json": plotly_json
         })
-# TODO: Transform history to session_state.messages
 
 # Initialize chat history
 if "messages" not in st.session_state:
