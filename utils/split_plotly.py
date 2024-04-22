@@ -12,7 +12,7 @@ def split_plotly(
             start = output.find(start_flag) + len(start_flag)
             end = output.find(end_flag)
             region = output[start:end].strip()
-            content = region[:output.find(start_flag)].strip()
+            content = region[:output.find(start_flag)].strip() + '\n' + region[output.find(end_flag):].strip()
             plotly_json = json.loads(region)
             return content, plotly_json
         else:
