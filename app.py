@@ -1,15 +1,22 @@
 import streamlit as st
-import json
 
 from agent import agent_executor_with_message_history
+from utils.split_plotly import split_plotly
 
 TEMP_USER_ID = 1
 TEMP_CONSERVATION_ID = 1
 
 st.title("Demo")
 
-# if "history" in agent_executor_with_message_history:
-#     st.session_state.messages = agent_executor_with_message_history.history
+if "history" in agent_executor_with_message_history:
+    st.session_state.messages = []
+    for message in agent_executor_with_message_history.history:
+        content, plotly_json = split_plotly(message.content)
+        st.session_state.messages.append({
+            "role": message.type,
+            "content": content,
+            "plotly_json": plotly_json
+        })
 # TODO: Transform history to session_state.messages
 
 # Initialize chat history
@@ -56,14 +63,8 @@ if prompt := st.chat_input("What is up?"):
         ENG_FLAG = "===EndPlotly==="
         if START_FLAG in output and ENG_FLAG in output:
             try:
-                start = output.find(START_FLAG) + len(START_FLAG)
-                end = output.find(ENG_FLAG)
-                region = output[start:end].strip()
-
-                content = region[:output.find(START_FLAG)].strip()
+                content, plotly_json = split_plotly(output)
                 st.markdown(content)
-
-                plotly_json = json.loads(region)
                 st.plotly_chart(plotly_json, use_container_width=True)
 
                 # Add assistant response to chat history

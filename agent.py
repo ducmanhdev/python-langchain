@@ -1,5 +1,6 @@
 import json
 
+from constants import PLOTLY_START_FLAG, PLOTLY_END_FLAG
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables import ConfigurableFieldSpec
@@ -47,12 +48,12 @@ example_selector = SemanticSimilarityExampleSelector.from_examples(
     input_keys=["input"],
 )
 
-prefix = """
+prefix = f"""
 You are an agent designed to interact with an SQL database.
 You will receive questions about pharmaceutical prescription data. 
-Create a syntactically correct {dialect} query to run, then look at the results of the query and return the answer.
-If the user requests a chart or a table, you will return a JSON of Plotly in the answer, wrap it between "===Plotly===" and "===EndPlotly===".
-Unless the user specifies a specific number of examples they wish to obtain, always limit your query to at most {top_k} results.
+Create a syntactically correct {{dialect}} query to run, then look at the results of the query and return the answer.
+If the user requests a chart or a table, you will return a JSON of Plotly in the answer, wrap it between {PLOTLY_START_FLAG} and {PLOTLY_END_FLAG}.
+Unless the user specifies a specific number of examples they wish to obtain, always limit your query to at most {{top_k}} results.
 You can order the results by a relevant column to return the most interesting examples in the database.
 Never query for all the columns from a specific table. Only ask for the relevant columns given the question.
 You have access to tools for interacting with the database.
