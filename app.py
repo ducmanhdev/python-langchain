@@ -23,7 +23,7 @@ st.title("Demo")
 #     st.session_state.messages = [
 #         {
 #             "role": "ai",
-#             "content": "Can I help you you?"
+#             "content": "Can I help you?"
 #         },
 #     ]
 #
@@ -36,7 +36,11 @@ st.title("Demo")
 
 print("msgs.messages", msgs.messages)
 for msg in msgs.messages:
-    st.chat_message(msg.type).write(msg.content)
+    content, plotly_json = split_plotly(msg.content)
+    with st.chat_message(msg.type):
+        st.markdown(content)
+        if plotly_json and plotly_json is not None:
+            st.plotly_chart(plotly_json, use_container_width=True)
 
 # Accept user input
 if prompt := st.chat_input("What is up?"):
@@ -65,6 +69,7 @@ if prompt := st.chat_input("What is up?"):
             }
         )
 
+    print('response', response)
     output: str = response["output"]
     # Display assistant response in chat message container
     with st.chat_message("ai"):

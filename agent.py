@@ -1,5 +1,12 @@
 import json
 
+import json
+import re
+from typing import List, Optional
+
+from langchain_core.messages import AIMessage
+from langchain_core.output_parsers import PydanticOutputParser
+
 from constants import PLOTLY_START_FLAG, PLOTLY_END_FLAG
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
@@ -20,9 +27,12 @@ from langchain_core.prompts import (
     SystemMessagePromptTemplate,
 )
 from langchain_openai import AzureChatOpenAI
-from langchain_community.chat_message_histories import (
-    StreamlitChatMessageHistory,
-)
+from langchain_community.chat_message_histories import StreamlitChatMessageHistory
+from langchain.agents import Tool, tool
+from langchain_core.pydantic_v1 import BaseModel, Field
+from langchain_core.agents import AgentActionMessageLog, AgentFinish
+from langchain.tools import BaseTool
+from langchain_core.agents import AgentFinish
 
 load_dotenv()
 
@@ -31,10 +41,14 @@ with open('examples.json', 'r') as file:
 
 db_uri = "sqlite:///./mydb.db"
 db = SQLDatabase.from_uri(db_uri)
+# context = db.get_context()
+# print('list(context)', list(context))
+# print('context["table_info"]', context["table_info"])
+# print('context["table_names"]', context["table_names"])
 
 llm = ChatOpenAI(
     model="gpt-3.5-turbo",
-    temperature=0
+    temperature=0.7
 )
 
 # llm = AzureChatOpenAI(
@@ -50,6 +64,8 @@ example_selector = SemanticSimilarityExampleSelector.from_examples(
     k=5,
     input_keys=["input"],
 )
+# test = example_selector.select_examples({"input": "How many accounts we have?"})
+# print('\n test', test)
 
 prefix = f"""
 You are an agent designed to interact with an SQL database and visualize data.
@@ -116,7 +132,14 @@ agent_executor = create_sql_agent(
     agent_type="openai-tools",
     handle_parsing_errors=True,
     handle_sql_errors=True,
+    # format_instructions=parser2.get_format_instructions(),
 )
+
+# TODO: add tool (optional),
+# TODO: parser output
+
+# SHOULD USE multiple agent?
+# agent = initialize_agent(tools,model,agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,verbose = True,handle_parsing_errors=True)
 
 # store = {}
 
@@ -137,6 +160,8 @@ if len(msgs.messages) == 0:
 
 agent_executor_with_message_history = RunnableWithMessageHistory(
     agent_executor,
+    # get_session_history,
+    # lambda session_id: message_history,
     lambda session_id: msgs,
     input_messages_key="input",
     history_messages_key="history",
