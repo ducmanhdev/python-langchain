@@ -1,21 +1,13 @@
 import json
 
-import json
-import re
-from typing import List, Optional
-
-from langchain_core.messages import AIMessage
-from langchain_core.output_parsers import PydanticOutputParser
-
+from datetime import datetime
 from constants import PLOTLY_START_FLAG, PLOTLY_END_FLAG
-from langchain_community.chat_message_histories import ChatMessageHistory
-from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_core.runnables import ConfigurableFieldSpec
+from langchain.agents import AgentExecutor
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_openai import ChatOpenAI
 from langchain_community.utilities import SQLDatabase
 from dotenv import load_dotenv
-from langchain_community.agent_toolkits import create_sql_agent
+from langchain_community.agent_toolkits import create_sql_agent, SQLDatabaseToolkit
 from langchain_community.vectorstores import FAISS
 from langchain_core.example_selectors import SemanticSimilarityExampleSelector
 from langchain_openai import OpenAIEmbeddings
@@ -26,13 +18,10 @@ from langchain_core.prompts import (
     PromptTemplate,
     SystemMessagePromptTemplate,
 )
-from langchain_openai import AzureChatOpenAI
 from langchain_community.chat_message_histories import StreamlitChatMessageHistory
-from langchain.agents import Tool, tool
-from langchain_core.pydantic_v1 import BaseModel, Field
-from langchain_core.agents import AgentActionMessageLog, AgentFinish
-from langchain.tools import BaseTool
-from langchain_core.agents import AgentFinish
+from langchain.tools import BaseTool, Tool
+from langchain.pydantic_v1 import BaseModel, Field
+from langchain.output_parsers import ResponseSchema, StructuredOutputParser
 
 load_dotenv()
 
@@ -47,8 +36,7 @@ db = SQLDatabase.from_uri(db_uri)
 # print('context["table_names"]', context["table_names"])
 
 llm = ChatOpenAI(
-    model="gpt-3.5-turbo",
-    temperature=0.7
+    model="gpt-4-turbo",
 )
 
 # llm = AzureChatOpenAI(
@@ -67,12 +55,20 @@ example_selector = SemanticSimilarityExampleSelector.from_examples(
 # test = example_selector.select_examples({"input": "How many accounts we have?"})
 # print('\n test', test)
 
-prefix = f"""
+response_schemas = [
+    ResponseSchema(name="answer", description="The natural language answer"),
+    ResponseSchema(name="plotly", description="The JSON config of the Plotly chart, table, etc."),
+]
+output_parser = StructuredOutputParser.from_response_schemas(response_schemas)
+format_instructions = output_parser.get_format_instructions()
+
+print('format_instructions', format_instructions)
+
+prefix = """
 You are an agent designed to interact with an SQL database and visualize data.
 You will receive questions about pharmaceutical prescription data. 
-Create a syntactically correct {{dialect}} query to run, then look at the results of the query and return the answer.
-If the user requests a chart or a table, you have to generate it using library Plotly and return a JSON in the answer, wrap it between {PLOTLY_START_FLAG} and {PLOTLY_END_FLAG}.
-Unless the user specifies a specific number of examples they wish to obtain, always limit your query to at most {{top_k}} results.
+Create a syntactically correct {dialect} query to run, then look at the results of the query.
+Unless the user specifies a specific number of examples they wish to obtain, always limit your query to at most {top_k} results.
 You can order the results by a relevant column to return the most interesting examples in the database.
 Never query for all the columns from a specific table. Only ask for the relevant columns given the question.
 You have access to tools for interacting with the database.
@@ -100,6 +96,11 @@ Some further notes:
 - The dates in the "week_date" column are stored as ISO-8601 strings.
 - Any 8 characters starting with letter G is "geo_code" referring to some geographical unit, like "G1M12002". This may be either at one of four levels: "NATION", "REGION", "DISTRICT", or "TERRITORY". With the exception of Any 8 characters starting with the letter G carrying "_" is "geo_pod", like "G1M1_002".
 
+If the user requests a chart or a table, you have to generate it using library Plotly.
+
+Finally, return your final answer follow the below format, this is important.
+{format_instructions}
+
 Here are some examples of user inputs and their corresponding SQL queries:
 """
 
@@ -113,6 +114,9 @@ few_shot_prompt = FewShotPromptTemplate(
     prefix=prefix,
     suffix="",
     input_variables=input_variables,
+    partial_variables={
+        'format_instructions': format_instructions
+    }
 )
 
 full_prompt = ChatPromptTemplate.from_messages(
@@ -132,17 +136,10 @@ agent_executor = create_sql_agent(
     agent_type="openai-tools",
     handle_parsing_errors=True,
     handle_sql_errors=True,
-    # format_instructions=parser2.get_format_instructions(),
+    # format_instructions=format_instructions,
 )
 
-# TODO: add tool (optional),
-# TODO: parser output
-
-# SHOULD USE multiple agent?
-# agent = initialize_agent(tools,model,agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,verbose = True,handle_parsing_errors=True)
-
 # store = {}
-
 
 # def get_session_history(user_id: str, conversation_id: str) -> BaseChatMessageHistory:
 #     if (user_id, conversation_id) not in store:
