@@ -1,4 +1,9 @@
+import json
+from typing import Any, Optional
+from uuid import UUID
+
 import streamlit as st
+from langchain_core.callbacks import BaseCallbackHandler
 
 from agent import agent_executor_with_message_history, msgs
 from utils.split_plotly import split_plotly
@@ -7,6 +12,7 @@ TEMP_USER_ID = 1
 TEMP_CONSERVATION_ID = 1
 
 st.title("Demo")
+
 
 # if "history" in agent_executor_with_message_history:
 #     st.session_state.messages = []
@@ -34,7 +40,28 @@ st.title("Demo")
 #         if ("plotly_json" in message) and (message["plotly_json"] is not None):
 #             st.plotly_chart(message["plotly_json"], use_container_width=True)
 
-print("msgs.messages", msgs.messages)
+class StreamHandler(BaseCallbackHandler):
+    def __init__(self, container, plotly_container, initial_text=""):
+        self.container = container
+        self.plotly_container = plotly_container
+        self.text = initial_text
+
+    def on_llm_new_token(self, token: str, **kwargs) -> None:
+        self.text += token
+        self.container.markdown(self.text)
+
+    def on_tool_end(
+            self,
+            output: Any,
+            *,
+            run_id: UUID,
+            parent_run_id: Optional[UUID] = None,
+            **kwargs: Any,
+    ) -> Any:
+        plotly_data = json.loads(output)
+        self.plotly_container.plotly_chart(plotly_data, use_container_width=True)
+
+
 for msg in msgs.messages:
     content, plotly_json = split_plotly(msg.content)
     with st.chat_message(msg.type):
@@ -51,32 +78,32 @@ if prompt := st.chat_input("What is up?"):
     # })
     # Display user message in chat message container
     with st.chat_message("user"):
-        st.markdown(prompt)
+        st.write(prompt)
 
-    # Display spinner while waiting for response
-    with st.spinner(text="Waiting for response..."):
-        # Invoke agent_executor to get response
-        response = agent_executor_with_message_history.invoke(
+    # Display assistant response in chat message container
+    with st.chat_message("ai"):
+        stream_handler = StreamHandler(
+            container=st.empty(),
+            plotly_container=st.empty()
+        )
+        agent_executor_with_message_history.invoke(
             {"input": prompt},
             {
                 # "configurable": {
                 #     "user_id": TEMP_USER_ID,
                 #     "conversation_id": TEMP_CONSERVATION_ID
-                # }
+                # },
                 "configurable": {
                     "session_id": "any"
-                }
+                },
+                "callbacks": [stream_handler]
             }
         )
-
-    print('response', response)
-    output: str = response["output"]
-    # Display assistant response in chat message container
-    with st.chat_message("ai"):
-        content, plotly_json = split_plotly(output)
-        st.markdown(content)
-        if plotly_json and plotly_json is not None:
-            st.plotly_chart(plotly_json, use_container_width=True)
+        # output: str = response["output"]
+        # content, plotly_json = split_plotly(output)
+        # st.markdown(content)
+        # if plotly_json and plotly_json is not None:
+        #     st.plotly_chart(plotly_json, use_container_width=True)
 
         # st.session_state.messages.append({
         #     "role": "ai",

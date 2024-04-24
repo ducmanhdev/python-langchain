@@ -1,6 +1,12 @@
 import json
 
 from datetime import datetime
+from typing import Any
+
+from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.runnables import ConfigurableFieldSpec
+from langchain_core.tools import StructuredTool
+
 from constants import PLOTLY_START_FLAG, PLOTLY_END_FLAG
 from langchain.agents import AgentExecutor
 from langchain_core.runnables.history import RunnableWithMessageHistory
@@ -18,8 +24,8 @@ from langchain_core.prompts import (
     PromptTemplate,
     SystemMessagePromptTemplate,
 )
-from langchain_community.chat_message_histories import StreamlitChatMessageHistory
-from langchain.tools import BaseTool, Tool
+from langchain_community.chat_message_histories import StreamlitChatMessageHistory, ChatMessageHistory
+from langchain.tools import BaseTool, Tool, tool
 from langchain.pydantic_v1 import BaseModel, Field
 from langchain.output_parsers import ResponseSchema, StructuredOutputParser
 
@@ -36,7 +42,8 @@ db = SQLDatabase.from_uri(db_uri)
 # print('context["table_names"]', context["table_names"])
 
 llm = ChatOpenAI(
-    model="gpt-4-turbo",
+    model="gpt-3.5-turbo",
+    streaming=True
 )
 
 # llm = AzureChatOpenAI(
@@ -62,12 +69,10 @@ response_schemas = [
 output_parser = StructuredOutputParser.from_response_schemas(response_schemas)
 format_instructions = output_parser.get_format_instructions()
 
-print('format_instructions', format_instructions)
-
 prefix = """
 You are an agent designed to interact with an SQL database and visualize data.
 You will receive questions about pharmaceutical prescription data. 
-Create a syntactically correct {dialect} query to run, then look at the results of the query.
+Create a syntactically correct {dialect} query to run, then look at the results of the query and return the answer.
 Unless the user specifies a specific number of examples they wish to obtain, always limit your query to at most {top_k} results.
 You can order the results by a relevant column to return the most interesting examples in the database.
 Never query for all the columns from a specific table. Only ask for the relevant columns given the question.
@@ -96,10 +101,8 @@ Some further notes:
 - The dates in the "week_date" column are stored as ISO-8601 strings.
 - Any 8 characters starting with letter G is "geo_code" referring to some geographical unit, like "G1M12002". This may be either at one of four levels: "NATION", "REGION", "DISTRICT", or "TERRITORY". With the exception of Any 8 characters starting with the letter G carrying "_" is "geo_pod", like "G1M1_002".
 
-If the user requests a chart or a table, you have to generate it using library Plotly.
 
-Finally, return your final answer follow the below format, this is important.
-{format_instructions}
+If user request a chart, a table or visualize data, you will use the tool called "generate_plotly" to do this, but you don't need to return the data from this function, just use it.
 
 Here are some examples of user inputs and their corresponding SQL queries:
 """
@@ -128,6 +131,40 @@ full_prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
+
+class GeneratePlotlyInput(BaseModel):
+    query_data_result: Any = Field(description="The query result")
+
+
+def generate_plotly_func(query_data_result: Any) -> str:
+    """Generate a plotly data"""
+    chart_data = {
+        "data": [{
+            "type": "bar",
+            "x": ["A", "B", "C", "D"],
+            "y": [3, 7, 2, 5]
+        }],
+        "layout": {
+            "title": "Basic Bar Chart",
+            "xaxis": {"title": "Categories"},
+            "yaxis": {"title": "Values"}
+        }
+    }
+
+    # Convert the chart data to JSON
+    chart_json = json.dumps(chart_data, indent=4)
+    return chart_json
+
+
+generate_plotly = StructuredTool.from_function(
+    func=generate_plotly_func,
+    name="GeneratePlotly",
+    description="Useful tool when user request a chart or a table, this tool will generate Plotly and return it as a JSON.",
+    args_schema=GeneratePlotlyInput,
+    # return_direct=True,
+    # coroutine= ... <- you can specify an async method if desired as well
+)
+
 agent_executor = create_sql_agent(
     llm=llm,
     db=db,
@@ -136,10 +173,11 @@ agent_executor = create_sql_agent(
     agent_type="openai-tools",
     handle_parsing_errors=True,
     handle_sql_errors=True,
+    extra_tools=[generate_plotly]
     # format_instructions=format_instructions,
 )
 
-# store = {}
+store = {}
 
 # def get_session_history(user_id: str, conversation_id: str) -> BaseChatMessageHistory:
 #     if (user_id, conversation_id) not in store:
@@ -151,9 +189,10 @@ agent_executor = create_sql_agent(
 #         store[session_id] = ChatMessageHistory()
 #     return store[session_id]
 
+
 msgs = StreamlitChatMessageHistory(key="langchain_messages")
 if len(msgs.messages) == 0:
-    msgs.add_ai_message("How can I help you?")
+    msgs.add_ai_message("Hello, how can I help you today?")
 
 agent_executor_with_message_history = RunnableWithMessageHistory(
     agent_executor,
